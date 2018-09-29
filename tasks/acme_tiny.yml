@@ -1,0 +1,62 @@
+---
+
+- name: Create ACME system group
+  group:
+    name: '{{ boss__pki__acme_group }}'
+    state: 'present'
+    system: True
+
+- name: Create ACME system account
+  user:
+    name: '{{ boss__pki__acme_user }}'
+    group: '{{ boss__pki__acme_group }}'
+    home: '{{ boss__pki__acme_home }}'
+    state: 'present'
+    system: True
+    createhome: False
+    shell: '/bin/false'
+
+- name: Create source directory
+  file:
+    path: '{{ boss__pki__acme_tiny_src }}'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+
+- name: Clone acme-tiny source code
+  git:
+    repo: '{{ boss__pki__acme_tiny_repo }}'
+    dest: '{{ boss__pki__acme_tiny_src + "/acme-tiny" }}'
+    version: '{{ boss__pki__acme_tiny_version }}'
+  register: boss__pki__register_acme_tiny_src
+
+- name: Install acme-tiny script
+  command: cp -f {{ boss__pki__acme_tiny_src }}/acme-tiny/acme_tiny.py {{ boss__pki__acme_tiny_bin }}
+  when: boss__pki__register_acme_tiny_src|changed
+
+- name: Ensure that acme-tiny is executable
+  file:
+    path: '{{ boss__pki__acme_tiny_bin }}'
+    state: 'file'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+
+- name: Create ACME challenge path
+  file:
+    path: '{{ boss__pki__acme_challenge_dir | dirname }}'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: boss__pki__create_acme_challenge_dir
+
+- name: Create ACME challenge directory
+  file:
+    path: '{{ boss__pki__acme_challenge_dir }}'
+    state: 'directory'
+    owner: '{{ boss__pki__acme_user }}'
+    group: '{{ boss__pki__acme_group }}'
+    mode: '0755'
+  when: boss__pki__create_acme_challenge_dir

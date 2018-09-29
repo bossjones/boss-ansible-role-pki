@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+#
+# Ensure that sensitive files are excluded from version control.
+#
+{{ (boss__pki__vcs_ignore_patterns_role +
+    boss__pki__vcs_ignore_patterns +
+    boss__pki__vcs_ignore_patterns_group +
+    boss__pki__vcs_ignore_patterns_host) | unique | sort | join("\n") }}

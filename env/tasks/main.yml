@@ -1,0 +1,5 @@
+---
+
+- name: Prepare boss.pki environment
+  set_fact:
+    boss__pki__env_secret_directories: '{{ lookup("template", "lookup/boss__pki__env_secret_directories.j2") | from_yaml }}'

@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+# {{ ansible_managed }}
+
+from __future__ import print_function
+from json import loads, dumps
+import subprocess
+import re
+
+{% set boss__pki__tpl_known_realms = [] %}
+{% if boss__pki__enabled | bool %}
+{%   for realm in (boss__pki__realms + boss__pki__default_realms + boss__pki__group_realms + boss__pki__host_realms + boss__pki__dependent_realms) %}
+{%     if (realm.name is defined and ((realm.enabled is undefined or realm.enabled|bool) and (realm.when is undefined or realm.when|bool))) %}
+{%       set _ = boss__pki__tpl_known_realms.append(realm.name) %}
+{%     endif %}
+{%   endfor %}
+{%   if (ansible_local|d() and ansible_local.pki|d() and ansible_local.pki.known_realms|d()) %}
+{%     for realm in ansible_local.pki.known_realms %}
+{%       if realm not in boss__pki__tpl_known_realms %}
+{%         set _ = boss__pki__tpl_known_realms.append(realm) %}
+{%       endif %}
+{%     endfor %}
+{%   endif %}
+{% endif %}
+
+output = loads('''{{ ({
+        "acme": (boss__pki__acme | bool | lower),
+        "base_path": (boss__pki__root + "/realms"),
+        "ca": "CA.crt",
+        "ca_realm": boss__pki__system_ca_realm,
+        "crt": "default.crt",
+        "enabled": (boss__pki__enabled | bool | lower),
+        "hooks": (boss__pki__root + "/hooks"),
+        "internal": boss__pki__internal | bool | lower,
+        "key": "default.key",
+        "known_realms": boss__pki__tpl_known_realms,
+        "path": (boss__pki__root + "/realms"),
+        "pem": "default.pem",
+        "realm": boss__pki__system_realm,
+        "trusted": "trusted.crt",
+    }) | to_nice_json }}''')
+
+try:
+    openssl_version_stdout = subprocess.check_output(['openssl', 'version'])
+    _re = re.match(r'\w+ (?P<full_version>(?P<strict_version>[^a-z ]+)[^ ]*)', openssl_version_stdout, re.IGNORECASE)
+    if _re:
+        output['openssl_strict_version'] = _re.group('strict_version')
+        output['openssl_version'] = _re.group('full_version')
+except:
+    pass
+
+try:
+    certtool_version_stdout = subprocess.check_output(['certtool', '--version']).split('\n')[0]
+    _re = re.match(r'\w+ (?P<version>[^ ]+)', certtool_version_stdout)
+    if _re:
+        output['gnutls_version'] = _re.group('version')
+except:
+    pass
+
+print(dumps(output, sort_keys=True, indent=2))
